@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civic Connect — Authenticating...</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-body">
+    <div class="glass-card auth-card" style="text-align: center; padding: 48px 40px;">
+        <div style="font-size: 3rem; margin-bottom: 16px;">🔐</div>
+        <h1 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">Completing Sign In...</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 24px;">Verifying your identity with Civic Connect.</p>
+        <div class="spinner" style="margin: 0 auto;"></div>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', handleOAuthCallback);
+    </script>
+</body>
+</html>

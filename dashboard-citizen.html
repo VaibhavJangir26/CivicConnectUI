@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civic Connect — Citizen Dashboard</title>
+    <meta name="description" content="File and track your community complaints through Civic Connect's citizen portal.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="globalLoader"><div class="spinner"></div><p class="spinner-text">Loading...</p></div>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- SIDEBAR -->
+    <aside class="drawer" id="sidebarDrawer">
+        <div>
+            <div class="drawer-header">
+                <div class="brand">
+                    <div class="brand-logo">C</div>
+                    <div>
+                        <div class="brand-name">Civic Connect</div>
+                        <span class="brand-tagline">Citizen Portal</span>
+                    </div>
+                </div>
+            </div>
+            <span class="nav-section-label">Navigation</span>
+            <ul class="nav-list">
+                <li class="nav-item active" data-tab="dashboard" onclick="switchViewTab('dashboard')">
+                    <span class="nav-icon">🏠</span> Dashboard
+                </li>
+                <li class="nav-item" data-tab="file-complaint" onclick="switchViewTab('file-complaint')">
+                    <span class="nav-icon">📋</span> File Complaint
+                </li>
+                <li class="nav-item" data-tab="my-list" onclick="switchViewTab('my-list')">
+                    <span class="nav-icon">📂</span> My Tickets
+                </li>
+                <li class="nav-item" data-tab="profile" onclick="switchViewTab('profile')">
+                    <span class="nav-icon">👤</span> My Profile
+                </li>
+            </ul>
+        </div>
+        <div class="drawer-footer">
+            <div class="user-pill">
+                <div class="user-avatar" id="avatarLetter">U</div>
+                <div class="user-info">
+                    <span class="user-name" id="profileShortName">Loading...</span>
+                    <span class="user-role" id="profileShortRole">CITIZEN</span>
+                </div>
+            </div>
+            <button class="btn-danger btn-sm" onclick="handleLogout()" style="width: 100%;">Sign Out</button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- ===== DASHBOARD PANEL ===== -->
+        <section id="panel-dashboard" class="view-panel active">
+            <div class="welcome-banner glass-card">
+                <h1>Welcome back, <span id="welcomeUserTitle">Citizen</span> 👋</h1>
+                <p>Track your complaints and stay informed about community issues in your area.</p>
+            </div>
+            <div class="stats-grid">
+                <div class="glass-card stat-card">
+                    <div class="stat-card-top">
+                        <span class="stat-label">Account Status</span>
+                        <div class="stat-icon success">✅</div>
+                    </div>
+                    <div id="statAccountStatus"><span class="badge active">ACTIVE</span></div>
+                </div>
+                <div class="glass-card stat-card">
+                    <div class="stat-card-top">
+                        <span class="stat-label">Role</span>
+                        <div class="stat-icon primary">🎭</div>
+                    </div>
+                    <div class="stat-value" id="statUserRole" style="font-size: 1rem;">CITIZEN</div>
+                </div>
+                <div class="glass-card stat-card">
+                    <div class="stat-card-top">
+                        <span class="stat-label">Username</span>
+                        <div class="stat-icon warning">🪪</div>
+                    </div>
+                    <div class="stat-value" id="statUsername" style="font-size: 1rem;">—</div>
+                </div>
+                <div class="glass-card stat-card">
+                    <div class="stat-card-top">
+                        <span class="stat-label">Profile ID</span>
+                        <div class="stat-icon danger">🔑</div>
+                    </div>
+                    <div class="stat-value" id="statProfileId" style="font-size: 0.75rem; letter-spacing: -0.3px; word-break: break-all;">—</div>
+                </div>
+            </div>
+
+            <div class="glass-card section-card">
+                <div class="section-card-header">
+                    <h2>Recent Activity</h2>
+                    <button class="btn-secondary btn-sm" onclick="switchViewTab('my-list')">View All →</button>
+                </div>
+                <div id="recentActivityContainer">
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <p>No recent activity. <a style="color: var(--indigo); cursor: pointer;" onclick="switchViewTab('file-complaint')">File your first complaint →</a></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== FILE COMPLAINT PANEL ===== -->
+        <section id="panel-file-complaint" class="view-panel">
+            <div class="page-header">
+                <h1>File a Complaint</h1>
+                <p>Report a local issue and we'll track its resolution for you.</p>
+            </div>
+            <div class="glass-card section-card">
+                <form id="complaintForm">
+                    <div class="form-grid">
+                        <div class="form-section-title">📝 Complaint Details</div>
+
+                        <div class="form-group full-width">
+                            <label>Describe the Issue</label>
+                            <div class="input-wrapper">
+                                <textarea id="compMessage" rows="3" placeholder="Describe the issue in detail..." style="resize: vertical;" required></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Category</label>
+                            <div class="input-wrapper">
+                                <select id="compCategory" required>
+                                    <option value="" disabled selected>Loading categories...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Priority Level</label>
+                            <div class="input-wrapper">
+                                <select id="compPriority" required>
+                                    <option value="LOW">🟢 LOW — Not urgent</option>
+                                    <option value="MEDIUM" selected>🟡 MEDIUM — Needs attention</option>
+                                    <option value="HIGH">🔴 HIGH — Urgent issue</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-section-title">📍 Incident Location</div>
+
+                        <div class="form-group full-width">
+                            <label>Address Line</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="compAddressLine" placeholder="E.g. Near Bus Stand, MG Road" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>City</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="compCity" placeholder="City / Town" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>State</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="compState" placeholder="State" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Pincode</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="compPincode" placeholder="Postal Code" pattern="\d{5,10}" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Country</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="compCountry" placeholder="Country" value="India">
+                            </div>
+                        </div>
+
+                        <div class="form-section-title">📷 Evidence Photos (Optional)</div>
+
+                        <div class="form-group full-width">
+                            <div class="file-drop-area" id="compDropArea" onclick="document.getElementById('compImages').click()"
+                                 ondragover="event.preventDefault(); this.classList.add('dragover')"
+                                 ondragleave="this.classList.remove('dragover')"
+                                 ondrop="handleFileDrop(event, 'compImages', 'compFileText', this)">
+                                <span class="upload-icon">📸</span>
+                                <span class="upload-text" id="compFileText">Click or drag images here</span>
+                                <span class="upload-subtext">JPG, PNG, WEBP — Max 3 recommended</span>
+                                <input type="file" id="compImages" multiple accept="image/*"
+                                       onchange="updateFileLabel(this, 'compFileText')" onclick="event.stopPropagation()">
+                            </div>
+                        </div>
+
+                        <div class="form-group full-width" style="margin-top: 8px;">
+                            <button type="submit" class="btn-primary">
+                                🚀 Submit Complaint
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ===== MY TICKETS PANEL ===== -->
+        <section id="panel-my-list" class="view-panel">
+            <div class="page-header">
+                <h1>My Complaints</h1>
+                <p>Track all your submitted complaints and their status.</p>
+            </div>
+            <div class="glass-card section-card">
+                <div class="section-card-header">
+                    <h2>Submitted Tickets</h2>
+                    <button class="btn-secondary btn-sm" onclick="loadMyComplaints()">↻ Refresh</button>
+                </div>
+                <div id="myComplaintsTableContainer">
+                    <div class="empty-state"><div class="spinner"></div></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== PROFILE PANEL ===== -->
+        <section id="panel-profile" class="view-panel">
+            <div class="page-header">
+                <h1>My Profile</h1>
+                <p>Manage your personal information and address details.</p>
+            </div>
+            <div class="glass-card section-card">
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                    <div class="profile-avatar-lg" id="profileAvatarLg">U</div>
+                    <div>
+                        <div style="font-size: 1.2rem; font-weight: 700;" id="profileDisplayName">Loading...</div>
+                        <div style="color: var(--text-muted); font-size: 0.85rem;" id="profileDisplayEmail"></div>
+                        <div style="margin-top: 6px;" id="profileDisplayBadge"><span class="badge active">ACTIVE</span></div>
+                    </div>
+                </div>
+                <form id="updateProfileForm">
+                    <div class="form-grid">
+                        <div class="form-section-title">👤 Personal Info</div>
+
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="profFullName" placeholder="Your full name">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Mobile Number <span style="color: var(--text-muted); font-weight: 400; text-transform: none;">(E.164 format)</span></label>
+                            <div class="input-wrapper">
+                                <input type="tel" id="profMobileNo" placeholder="+91 9876543210">
+                            </div>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Date of Birth</label>
+                            <div class="input-wrapper">
+                                <input type="date" id="profDob">
+                            </div>
+                        </div>
+
+                        <div class="form-section-title">📍 Primary Address</div>
+
+                        <div class="form-group full-width">
+                            <label>Address Line</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="profAddressLine" placeholder="House No., Street, Area">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>City</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="profCity" placeholder="City">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>State</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="profState" placeholder="State">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Pincode</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="profPincode" placeholder="Postal Code">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Country</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="profCountry" placeholder="Country">
+                            </div>
+                        </div>
+
+                        <div class="form-group full-width" style="margin-top: 8px;">
+                            <button type="submit" class="btn-primary">💾 Save Profile</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <!-- COMPLAINT DETAIL MODAL -->
+    <div id="complaintDetailModal" class="modal-overlay hidden">
+        <div class="glass-card modal-card" style="max-width: 640px; text-align: left; max-height: 90vh; overflow-y: auto; padding: 28px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <span id="modalCompCategory" class="badge low" style="font-size: 0.8rem;">Category</span>
+                        <span id="modalCompStatus" class="badge pending">PENDING</span>
+                        <span id="modalCompPriority" class="badge high">HIGH</span>
+                    </div>
+                    <h2 id="modalCompTitle" style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; color: white;">Complaint Details</h2>
+                    <span id="modalCompId" style="font-family: monospace; font-size: 0.75rem; color: var(--text-muted);">#ID</span>
+                </div>
+                <button type="button" class="btn-secondary btn-sm" onclick="closeComplaintModal()" style="padding: 4px 10px;">✕ Close</button>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label class="stat-label">Message / Description</label>
+                    <p id="modalCompMessage" style="color: var(--text-primary); font-size: 0.92rem; line-height: 1.6; background: rgba(6,11,24,0.5); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-top: 4px; white-space: pre-wrap;"></p>
+                </div>
+
+                <div class="form-grid" style="gap: 12px;">
+                    <div>
+                        <label class="stat-label">Citizen Name</label>
+                        <div id="modalCompCitizen" style="color: var(--text-primary); font-weight: 600; margin-top: 2px;">—</div>
+                    </div>
+                    <div>
+                        <label class="stat-label">Assigned Officer</label>
+                        <div id="modalCompOfficer" style="color: var(--text-primary); font-weight: 600; margin-top: 2px;">—</div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="stat-label">Location / Address</label>
+                    <div id="modalCompAddress" style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px; background: rgba(6,11,24,0.4); padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color);"></div>
+                </div>
+
+                <div>
+                    <label class="stat-label">Evidence Photos (Citizen)</label>
+                    <div id="modalCompImages" class="image-gallery" style="margin-top: 6px; gap: 10px;"></div>
+                </div>
+
+                <div>
+                    <label class="stat-label">Resolution Proof Photos (Officer)</label>
+                    <div id="modalProofImages" class="image-gallery" style="margin-top: 6px; gap: 10px;"></div>
+                </div>
+
+                <div style="font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span>Created: <strong id="modalCompCreatedAt" style="color: var(--text-secondary);">—</strong></span>
+                        <span style="margin-left: 12px;">Updated: <strong id="modalCompUpdatedAt" style="color: var(--text-secondary);">—</strong></span>
+                    </div>
+                    <div id="modalActionFooter"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/router.js"></script>
+    <script src="js/citizen.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const profile = await loadProfileData();
+            if (profile) {
+                // Personal
+                if (document.getElementById('profFullName')) document.getElementById('profFullName').value = profile.fullName || '';
+                if (document.getElementById('profMobileNo')) document.getElementById('profMobileNo').value = profile.mobileNo || '';
+                if (document.getElementById('profDob')) document.getElementById('profDob').value = profile.dob || '';
+                // Address
+                if (profile.address) {
+                    const f = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+                    f('profAddressLine', profile.address.addressLine);
+                    f('profCity', profile.address.city);
+                    f('profState', profile.address.state);
+                    f('profPincode', profile.address.pincode);
+                    f('profCountry', profile.address.country);
+                }
+                // Profile card
+                const name = profile.fullName || profile.username || 'Citizen';
+                document.getElementById('profileAvatarLg').textContent = name.charAt(0).toUpperCase();
+                document.getElementById('profileDisplayName').textContent = name;
+                document.getElementById('profileDisplayEmail').textContent = profile.email || '';
+                const statusBadge = document.getElementById('profileDisplayBadge');
+                if (statusBadge && profile.accountStatus) {
+                    statusBadge.innerHTML = `<span class="badge ${profile.accountStatus.toLowerCase()}">${profile.accountStatus}</span>`;
+                }
+            }
+        });
+
+        function handleFileDrop(event, inputId, textId, dropArea) {
+            event.preventDefault();
+            dropArea.classList.remove('dragover');
+            const input = document.getElementById(inputId);
+            if (input) {
+                input.files = event.dataTransfer.files;
+                updateFileLabel(input, textId);
+            }
+        }
+
+        function updateFileLabel(input, textId) {
+            const el = document.getElementById(textId);
+            if (el) {
+                el.textContent = input.files.length > 0 ? `${input.files.length} file(s) selected` : 'Click or drag images here';
+            }
+        }
+    </script>
+</body>
+</html>
