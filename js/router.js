@@ -250,3 +250,212 @@ function closeComplaintModal() {
     const modal = document.getElementById('complaintDetailModal');
     if (modal) modal.classList.add('hidden');
 }
+
+// Global Search UI and Functionality
+let searchDebounceTimer;
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupGlobalSearchUI();
+});
+
+function setupGlobalSearchUI() {
+    const input = document.getElementById('globalComplaintSearch');
+    const suggestions = document.getElementById('globalSearchSuggestions');
+    if (!input || !suggestions) return;
+
+    input.addEventListener('input', () => {
+        clearTimeout(searchDebounceTimer);
+        const query = input.value.trim();
+        if (!query) {
+            suggestions.style.display = 'none';
+            suggestions.innerHTML = '';
+            return;
+        }
+
+        searchDebounceTimer = setTimeout(async () => {
+            const res = await apiRequest(`/complains/suggest?query=${encodeURIComponent(query)}`, 'GET');
+            if (res.status === 200 && res.data) {
+                const arr = getApiData(res) || [];
+                if (arr.length === 0) {
+                    suggestions.style.display = 'none';
+                    return;
+                }
+                suggestions.innerHTML = '';
+                suggestions.style.display = 'flex';
+                arr.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'suggestion-item';
+                    div.style.padding = '10px 14px';
+                    div.style.cursor = 'pointer';
+                    div.style.color = '#fff';
+                    div.style.borderBottom = '1px solid var(--border-color)';
+                    div.style.fontSize = '0.9rem';
+                    div.textContent = item;
+                    div.addEventListener('mouseover', () => { div.style.background = 'rgba(255,255,255,0.08)'; });
+                    div.addEventListener('mouseout', () => { div.style.background = 'transparent'; });
+                    div.addEventListener('click', () => {
+                        input.value = item;
+                        suggestions.style.display = 'none';
+                        triggerGlobalSearch();
+                    });
+                    suggestions.appendChild(div);
+                });
+            }
+        }, 300);
+    });
+
+    // Close suggestions list on click outside
+    document.addEventListener('click', (e) => {
+        if (e.target !== input && e.target !== suggestions) {
+            suggestions.style.display = 'none';
+        }
+    });
+
+    // Support hitting Enter
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            suggestions.style.display = 'none';
+            triggerGlobalSearch();
+        }
+    });
+}
+
+async function triggerGlobalSearch() {
+    const input = document.getElementById('globalComplaintSearch');
+    if (!input) return;
+    const query = input.value.trim();
+    if (!query) return;
+
+    let containerId = '';
+    const path = window.location.pathname;
+    if (path.includes('dashboard-citizen.html')) {
+        containerId = 'myComplaintsTableContainer';
+    } else if (path.includes('dashboard-officer.html')) {
+        containerId = 'assignedTasksContainer';
+    } else if (path.includes('dashboard-admin.html')) {
+        containerId = 'allComplaintsContainer';
+    }
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+
+    const res = await apiRequest(`/complains/search?keyword=${encodeURIComponent(query)}`, 'GET');
+    if (res.status !== 200 || !res.data) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>${extractErrorMessage(res)}</p></div>`;
+        return;
+    }
+
+    const arr = getApiData(res) || [];
+    renderSearchResultsTable(arr, containerId);
+}
+
+function triggerGlobalClear() {
+    const input = document.getElementById('globalComplaintSearch');
+    if (input) input.value = '';
+    
+    const path = window.location.pathname;
+    if (path.includes('dashboard-citizen.html')) {
+        if (typeof loadMyComplaints === 'function') loadMyComplaints();
+    } else if (path.includes('dashboard-officer.html')) {
+        if (typeof loadAssignedTasks === 'function') loadAssignedTasks();
+    } else if (path.includes('dashboard-admin.html')) {
+        if (typeof loadAllComplaints === 'function') loadAllComplaints();
+    }
+}
+
+function renderSearchResultsTable(arr, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (arr.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>No complaints matched your search.</p></div>';
+        return;
+    }
+
+    let rows = '';
+    const isCitizen = window.location.pathname.includes('dashboard-citizen.html');
+    const isOfficer = window.location.pathname.includes('dashboard-officer.html');
+    const isAdmin = window.location.pathname.includes('dashboard-admin.html');
+
+    arr.forEach(c => {
+        const catName = c.categoryName || 'N/A';
+        const statusLabel = c.complainStatus || 'PENDING';
+        const priority = c.complainPriority || 'LOW';
+        const citizen = c.citizenName || '—';
+        const officer = c.assignedOfficerName || '—';
+        const shortId = c.id ? c.id.substring(0, 8) + '…' : '—';
+
+        let actions = '';
+        if (isCitizen) {
+            actions = `<button class="btn-secondary btn-sm" onclick="openComplaintModal('${c.id}')">🔍 Details</button>`;
+        } else if (isOfficer) {
+            actions = `
+                <div style="display: flex; gap: 6px; flex-wrap: nowrap;">
+                    <button class="btn-secondary btn-sm" onclick="openComplaintModal('${c.id}')">🔍 Details</button>
+                    <button class="btn-secondary btn-sm" onclick="fillTaskForm('${c.id}')">✏️ Update</button>
+                </div>`;
+        } else if (isAdmin) {
+            actions = `
+                <div style="display: flex; gap: 6px; flex-wrap: nowrap;">
+                    <button class="btn-secondary btn-sm" onclick="openComplaintModal('${c.id}')">🔍 Details</button>
+                    <button class="btn-secondary btn-sm" onclick="fillManageForm('${c.id}')">✏️ Manage</button>
+                    <button class="btn-danger btn-sm" onclick="deleteComplaint('${c.id}')">🗑️</button>
+                </div>`;
+        }
+
+        if (isCitizen) {
+            rows += `
+                <tr>
+                    <td title="${c.id}">${shortId}</td>
+                    <td>${catName}</td>
+                    <td style="max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${c.message}">${c.message}</td>
+                    <td><span class="badge ${priority.toLowerCase()}">${priority}</span></td>
+                    <td><span class="badge ${statusLabel.toLowerCase()}">${statusLabel}</span></td>
+                    <td style="color: var(--text-muted); font-size: 0.78rem;">${officer ? `👷 ${officer}` : '—'}</td>
+                    <td>${actions}</td>
+                </tr>`;
+        } else if (isOfficer) {
+            rows += `
+                <tr>
+                    <td title="${c.id}">${shortId}</td>
+                    <td>${catName}</td>
+                    <td style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${c.message}">${c.message}</td>
+                    <td>${citizen}</td>
+                    <td><span class="badge ${priority.toLowerCase()}">${priority}</span></td>
+                    <td><span class="badge ${statusLabel.toLowerCase()}">${statusLabel}</span></td>
+                    <td>${actions}</td>
+                </tr>`;
+        } else {
+            rows += `
+                <tr>
+                    <td title="${c.id}" style="font-family: monospace;">${shortId}</td>
+                    <td>${catName}</td>
+                    <td style="max-width: 180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${c.message}">${c.message}</td>
+                    <td>${citizen}</td>
+                    <td>${officer}</td>
+                    <td><span class="badge ${priority.toLowerCase()}">${priority}</span></td>
+                    <td><span class="badge ${statusLabel.toLowerCase()}">${statusLabel}</span></td>
+                    <td>${actions}</td>
+                </tr>`;
+        }
+    });
+
+    let headers = '';
+    if (isCitizen) {
+        headers = '<tr><th>ID</th><th>Category</th><th>Message</th><th>Priority</th><th>Status</th><th>Officer</th><th>Action</th></tr>';
+    } else if (isOfficer) {
+        headers = '<tr><th>ID</th><th>Category</th><th>Message</th><th>Citizen</th><th>Priority</th><th>Status</th><th>Actions</th></tr>';
+    } else {
+        headers = '<tr><th>ID</th><th>Category</th><th>Message</th><th>Citizen</th><th>Officer</th><th>Priority</th><th>Status</th><th>Actions</th></tr>';
+    }
+
+    container.innerHTML = `
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>${headers}</thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+}

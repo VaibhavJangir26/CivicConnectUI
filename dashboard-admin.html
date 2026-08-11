@@ -202,6 +202,18 @@
                     <h2>All Complaints</h2>
                     <button class="btn-secondary btn-sm" onclick="loadAllComplaints()">↻ Refresh</button>
                 </div>
+                <!-- Global Search Bar -->
+                <div class="search-bar-wrapper" style="margin: 0 20px 20px 20px; position: relative;">
+                    <div style="display: flex; gap: 8px;">
+                        <div style="flex: 1; position: relative;">
+                            <input type="text" id="globalComplaintSearch" placeholder="🔍 Search complaints globally (fuzzy match message, category, location...)" style="width: 100%; padding: 10px 14px 10px 40px; background: rgba(6,11,24,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: white;" autocomplete="off">
+                            <span style="position: absolute; left: 14px; top: 10px; color: var(--text-muted);">🔍</span>
+                        </div>
+                        <button class="btn-primary" onclick="triggerGlobalSearch()" style="padding: 10px 20px; font-size: 0.9rem;">Search</button>
+                        <button class="btn-secondary" onclick="triggerGlobalClear()" style="padding: 10px 14px; font-size: 0.9rem;">Clear</button>
+                    </div>
+                    <div id="globalSearchSuggestions" class="glass-card" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 100; margin-top: 4px; display: none; flex-direction: column; max-height: 200px; overflow-y: auto; background: rgba(8,15,30,0.95); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);"></div>
+                </div>
                 <div id="allComplaintsContainer">
                     <div class="empty-state"><div class="spinner"></div></div>
                 </div>
