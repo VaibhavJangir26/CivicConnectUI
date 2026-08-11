@@ -1,4 +1,4 @@
-const API_BASE = 'https://civicconnect-backend-45bq.onrender.com';
+const API_BASE = 'https://civicconnect-backend-45bq.onrender.com/api/v1';
 
 /* ===== LOADER ===== */
 function showLoader() { const el = document.getElementById('globalLoader'); if (el) el.classList.add('active'); }
