@@ -253,6 +253,7 @@ function closeComplaintModal() {
 
 // Global Search UI and Functionality
 let searchDebounceTimer;
+let suggestionDebounceTimer;
 
 document.addEventListener('DOMContentLoaded', () => {
     setupGlobalSearchUI();
@@ -261,18 +262,28 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupGlobalSearchUI() {
     const input = document.getElementById('globalComplaintSearch');
     const suggestions = document.getElementById('globalSearchSuggestions');
+    const clearBtn = document.getElementById('globalSearchClearBtn');
     if (!input || !suggestions) return;
 
     input.addEventListener('input', () => {
-        clearTimeout(searchDebounceTimer);
         const query = input.value.trim();
+        
+        // Show/hide ✕ button
+        if (clearBtn) {
+            if (query) clearBtn.classList.add('active');
+            else clearBtn.classList.remove('active');
+        }
+
         if (!query) {
             suggestions.style.display = 'none';
             suggestions.innerHTML = '';
+            triggerGlobalClear();
             return;
         }
 
-        searchDebounceTimer = setTimeout(async () => {
+        // Debounce Autosuggestion API Call (300ms)
+        clearTimeout(suggestionDebounceTimer);
+        suggestionDebounceTimer = setTimeout(async () => {
             const res = await apiRequest(`/complains/suggest?query=${encodeURIComponent(query)}`, 'GET');
             if (res.status === 200 && res.data) {
                 const arr = getApiData(res) || [];
@@ -284,24 +295,28 @@ function setupGlobalSearchUI() {
                 suggestions.style.display = 'flex';
                 arr.forEach(item => {
                     const div = document.createElement('div');
-                    div.className = 'suggestion-item';
-                    div.style.padding = '10px 14px';
-                    div.style.cursor = 'pointer';
-                    div.style.color = '#fff';
-                    div.style.borderBottom = '1px solid var(--border-color)';
-                    div.style.fontSize = '0.9rem';
-                    div.textContent = item;
-                    div.addEventListener('mouseover', () => { div.style.background = 'rgba(255,255,255,0.08)'; });
-                    div.addEventListener('mouseout', () => { div.style.background = 'transparent'; });
+                    div.className = 'search-dropdown-item';
+                    
+                    // Highlight matching substring for production style suggestions
+                    const regex = new RegExp(`(${query})`, 'gi');
+                    div.innerHTML = item.replace(regex, '<strong>$1</strong>');
+                    
                     div.addEventListener('click', () => {
                         input.value = item;
                         suggestions.style.display = 'none';
+                        if (clearBtn) clearBtn.classList.add('active');
                         triggerGlobalSearch();
                     });
                     suggestions.appendChild(div);
                 });
             }
         }, 300);
+
+        // Optional: Debounce actual Search results API Call (600ms) for real-time live typing filter!
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            triggerGlobalSearch();
+        }, 600);
     });
 
     // Close suggestions list on click outside
@@ -311,9 +326,10 @@ function setupGlobalSearchUI() {
         }
     });
 
-    // Support hitting Enter
+    // Support hitting Enter to search instantly
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
+            clearTimeout(searchDebounceTimer);
             suggestions.style.display = 'none';
             triggerGlobalSearch();
         }
@@ -354,6 +370,15 @@ async function triggerGlobalSearch() {
 function triggerGlobalClear() {
     const input = document.getElementById('globalComplaintSearch');
     if (input) input.value = '';
+    
+    const clearBtn = document.getElementById('globalSearchClearBtn');
+    if (clearBtn) clearBtn.classList.remove('active');
+
+    const suggestions = document.getElementById('globalSearchSuggestions');
+    if (suggestions) {
+        suggestions.style.display = 'none';
+        suggestions.innerHTML = '';
+    }
     
     const path = window.location.pathname;
     if (path.includes('dashboard-citizen.html')) {
