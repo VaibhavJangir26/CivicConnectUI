@@ -1,6 +1,13 @@
 /* ===== AUTH.JS — Fully aligned with backend DTOs ===== */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Dynamically bind OAuth endpoints based on API_BASE
+    const backendOrigin = API_BASE.replace('/api/v1', '');
+    const googleBtn = document.getElementById('googleOAuthBtn');
+    const githubBtn = document.getElementById('githubOAuthBtn');
+    if (googleBtn) googleBtn.href = `${backendOrigin}/oauth2/authorization/google`;
+    if (githubBtn) githubBtn.href = `${backendOrigin}/oauth2/authorization/github`;
+
     // Redirect already-authenticated users away from login page
     const existingToken = sessionStorage.getItem('accessToken');
     const existingRoles = sessionStorage.getItem('userRoles');
