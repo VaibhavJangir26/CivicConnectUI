@@ -38,7 +38,7 @@ async function apiRequest(endpoint, method = 'GET', data = null, isMultipart = f
     if (!isMultipart) {
         headers['Content-Type'] = 'application/json';
     }
-    if (token) {
+    if (token && !endpoint.includes('/auth/')) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
