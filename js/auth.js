@@ -5,15 +5,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const backendOrigin = API_BASE.replace('/api/v1', '');
     const googleBtn = document.getElementById('googleOAuthBtn');
     const githubBtn = document.getElementById('githubOAuthBtn');
-    if (googleBtn) googleBtn.href = `${backendOrigin}/oauth2/authorization/google`;
-    if (githubBtn) githubBtn.href = `${backendOrigin}/oauth2/authorization/github`;
+    const googleBtnReg = document.getElementById('googleOAuthBtnReg');
+    const githubBtnReg = document.getElementById('githubOAuthBtnReg');
+
+    const googleUrl = `${backendOrigin}/oauth2/authorization/google`;
+    const githubUrl = `${backendOrigin}/oauth2/authorization/github`;
+
+    if (googleBtn) googleBtn.href = googleUrl;
+    if (githubBtn) githubBtn.href = githubUrl;
+    if (googleBtnReg) googleBtnReg.href = googleUrl;
+    if (githubBtnReg) githubBtnReg.href = githubUrl;
 
     // Redirect already-authenticated users away from login page
-    const existingToken = sessionStorage.getItem('accessToken');
-    const existingRoles = sessionStorage.getItem('userRoles');
+    const existingToken = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+    const existingRoles = sessionStorage.getItem('userRoles') || localStorage.getItem('userRoles');
     if (existingToken && existingRoles) {
-        routeUserBasedOnRole(JSON.parse(existingRoles));
-        return;
+        try {
+            routeUserBasedOnRole(JSON.parse(existingRoles));
+            return;
+        } catch (e) {
+            sessionStorage.clear();
+            localStorage.clear();
+        }
     }
 
     let cachedSignupEmail = null;
@@ -194,9 +207,14 @@ function closeOtpModal() {
 /* ===== SUCCESSFUL LOGIN HANDLER ===== */
 function handleSuccessfulLogin(payload) {
     sessionStorage.setItem('accessToken', payload.accessToken);
-    if (payload.refreshToken) sessionStorage.setItem('refreshToken', payload.refreshToken);
+    localStorage.setItem('accessToken', payload.accessToken);
+    if (payload.refreshToken) {
+        sessionStorage.setItem('refreshToken', payload.refreshToken);
+        localStorage.setItem('refreshToken', payload.refreshToken);
+    }
     const roles = Array.isArray(payload.roles) ? payload.roles : [];
     sessionStorage.setItem('userRoles', JSON.stringify(roles));
+    localStorage.setItem('userRoles', JSON.stringify(roles));
     routeUserBasedOnRole(roles);
 }
 
@@ -208,6 +226,8 @@ function handleOAuthCallback() {
     if (accessToken && refreshToken) {
         sessionStorage.setItem('accessToken', accessToken);
         sessionStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
         // Must fetch profile to get roles
         fetch(`${API_BASE}/profile/me`, {
             headers: { 'Authorization': 'Bearer ' + accessToken }
@@ -217,25 +237,27 @@ function handleOAuthCallback() {
             const profile = data.data || data;
             const roles = Array.isArray(profile.roles) ? [...profile.roles] : [];
             sessionStorage.setItem('userRoles', JSON.stringify(roles));
+            localStorage.setItem('userRoles', JSON.stringify(roles));
             routeUserBasedOnRole(roles);
         })
         .catch(() => {
             sessionStorage.setItem('userRoles', JSON.stringify([]));
-            window.location.href = 'dashboard-citizen.html';
+            localStorage.setItem('userRoles', JSON.stringify([]));
+            window.location.replace('dashboard-citizen.html');
         });
     } else {
-        window.location.href = 'index.html';
+        window.location.replace('index.html');
     }
 }
 
 /* ===== ROLE-BASED ROUTING ===== */
 function routeUserBasedOnRole(rolesArray) {
     if (!Array.isArray(rolesArray)) rolesArray = [];
+    let target = 'dashboard-citizen.html';
     if (rolesArray.includes('ROLE_SUPER_ADMIN') || rolesArray.includes('ROLE_MANAGER')) {
-        window.location.href = 'dashboard-admin.html';
+        target = 'dashboard-admin.html';
     } else if (rolesArray.includes('ROLE_OFFICER')) {
-        window.location.href = 'dashboard-officer.html';
-    } else {
-        window.location.href = 'dashboard-citizen.html';
+        target = 'dashboard-officer.html';
     }
+    window.location.replace(target);
 }

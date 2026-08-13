@@ -17,26 +17,42 @@
     <!-- TOAST CONTAINER -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <div class="glass-card auth-card">
-        <!-- Brand -->
-        <div class="auth-brand-area">
-            <div class="brand">
-                <div class="brand-logo">C</div>
+    <div class="auth-card-split">
+        <!-- Hero Left Banner -->
+        <div class="auth-hero-banner">
+            <div class="auth-hero-overlay"></div>
+            <div class="auth-hero-content">
+                <div class="brand">
+                    <div class="brand-logo"><img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=120&q=80" alt="Civic Connect Logo"></div>
+                    <div class="brand-name-hero">Civic Connect</div>
+                </div>
                 <div>
-                    <div class="brand-name">Civic Connect</div>
-                    <span class="brand-tagline">Citizen Portal</span>
+                    <h1 class="hero-slogan">Report.<br>Track.<br>Resolve.</h1>
+                    <p class="hero-subtext">Empowering citizens &amp; officers with real-time community issue reporting and transparent resolution tracking.</p>
+                    <div class="hero-badges">
+                        <span class="hero-badge">⚡ Real-time Tracking</span>
+                        <span class="hero-badge">🔐 OAuth 2.0 Auth</span>
+                        <span class="hero-badge">🏛️ Direct Resolution</span>
+                    </div>
                 </div>
             </div>
-            <p class="auth-tagline" style="margin-top: 12px;">
-                Report local issues, track resolutions &amp; strengthen your community.
-            </p>
         </div>
 
-        <!-- Tabs -->
-        <div class="auth-tabs">
-            <button class="auth-tab active" id="tabLogin" onclick="setAuthTab('login')">Sign In</button>
-            <button class="auth-tab" id="tabRegister" onclick="setAuthTab('register')">Create Account</button>
-        </div>
+        <!-- Form Right Container -->
+        <div class="auth-form-container">
+            <div class="auth-header-top">
+                <div>
+                    <div style="font-weight: 800; font-size: 1.15rem; color: var(--text-primary);">Welcome Back</div>
+                    <span class="auth-tagline" style="font-size: 0.8rem;">Citizen &amp; Official Portal</span>
+                </div>
+                <button type="button" onclick="toggleTheme()" class="theme-toggle-btn" title="Toggle Theme">🌙</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tabLogin" onclick="setAuthTab('login')">Sign In</button>
+                <button class="auth-tab" id="tabRegister" onclick="setAuthTab('register')">Create Account</button>
+            </div>
 
         <!-- ===== LOGIN FORM ===== -->
         <form id="loginForm" class="form-stack">
@@ -59,46 +75,48 @@
             <div class="auth-divider">OR</div>
             <div class="oauth-buttons">
                 <a id="googleOAuthBtn" href="#" class="oauth-btn">
-                    <span>🔵</span> Google
+                    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" style="width:1.2em; height:1.2em;"> Google
                 </a>
                 <a id="githubOAuthBtn" href="#" class="oauth-btn">
-                    <span>⚫</span> GitHub
+                    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub" style="width:1.2em; height:1.2em;"> GitHub
                 </a>
             </div>
         </form>
 
-        <!-- ===== REGISTER FORM ===== -->
-        <form id="registerForm" class="form-stack hidden">
+        <!-- ===== REGISTER FORM (OAUTH ONLY FOR NEW USERS) ===== -->
+        <div id="registerForm" class="form-stack hidden">
+            <div class="oauth-register-notice" style="text-align: center; padding: 10px 0;">
+                <div style="font-size: 2.2rem; margin-bottom: 8px;">🔐</div>
+                <h3 style="color: var(--text-primary); font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">Authentication Required</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; margin-bottom: 20px;">
+                    To register as a new user, you must authenticate with <strong>Google</strong> or <strong>GitHub</strong>.
+                </p>
+                <div class="oauth-buttons" style="flex-direction: column; gap: 10px;">
+                    <a id="googleOAuthBtnReg" href="#" class="oauth-btn" style="justify-content: center; padding: 12px; font-weight: 600;">
+                        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" style="width:1.2em; height:1.2em;"> Continue with Google
+                    </a>
+                    <a id="githubOAuthBtnReg" href="#" class="oauth-btn" style="justify-content: center; padding: 12px; font-weight: 600;">
+                        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub" style="width:1.2em; height:1.2em;"> Continue with GitHub
+                    </a>
+                </div>
+            </div>
+
+            <!-- Standard signup form temporarily flagged out -->
+            <!-- 
             <div class="form-group">
                 <label>Full Name</label>
                 <div class="input-wrapper">
-                    <input type="text" id="regFullName" placeholder="Jane Doe" autocomplete="name" required>
+                    <input type="text" id="regFullName" placeholder="Jane Doe" autocomplete="name">
                 </div>
             </div>
             <div class="form-group">
                 <label>Email Address</label>
                 <div class="input-wrapper">
-                    <input type="email" id="regEmail" placeholder="jane@example.com" autocomplete="email" required>
-                </div>
-                <div class="availability-indicator" id="emailAvail"></div>
-            </div>
-            <div class="form-group">
-                <label>Username</label>
-                <div class="input-wrapper">
-                    <input type="text" id="regUsername" placeholder="janedoe99" autocomplete="username" required>
-                </div>
-                <div class="availability-indicator" id="usernameAvail"></div>
-            </div>
-            <div class="form-group">
-                <label>Password <span style="color: var(--text-muted); font-weight: 400;">(min 6 characters)</span></label>
-                <div class="input-wrapper">
-                    <input type="password" id="regPassword" placeholder="Create a strong password" autocomplete="new-password" required>
+                    <input type="email" id="regEmail" placeholder="jane@example.com" autocomplete="email">
                 </div>
             </div>
-            <button type="submit" class="btn-primary" style="margin-top: 6px;">
-                Send Verification Code
-            </button>
-        </form>
+            -->
+        </div>
     </div>
 
     <!-- OTP MODAL -->

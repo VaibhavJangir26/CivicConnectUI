@@ -1,5 +1,33 @@
 const API_BASE = 'https://civicconnect-backend-45bq.onrender.com/api/v1';
 
+/* ===== THEME MANAGER (LIGHT BY DEFAULT + CACHING) ===== */
+function initTheme() {
+    const savedTheme = localStorage.getItem('civic_theme') || 'light';
+    setTheme(savedTheme, false);
+}
+
+function setTheme(theme, save = true) {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (save) {
+        localStorage.setItem('civic_theme', theme);
+    }
+    document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+        btn.innerHTML = theme === 'dark' ? '☀️' : '🌙';
+        btn.setAttribute('title', theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+    });
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme, true);
+}
+
+// Apply cached theme immediately
+initTheme();
+document.addEventListener('DOMContentLoaded', initTheme);
+
+
 /* ===== LOADER ===== */
 function showLoader() { const el = document.getElementById('globalLoader'); if (el) el.classList.add('active'); }
 function hideLoader() { const el = document.getElementById('globalLoader'); if (el) el.classList.remove('active'); }
@@ -58,7 +86,7 @@ async function apiRequest(endpoint, method = 'GET', data = null, isMultipart = f
                 response = await fetch(API_BASE + endpoint, { ...config, headers });
             } else {
                 sessionStorage.clear();
-                window.location.href = 'index.html';
+                window.location.replace('index.html');
                 hideLoader();
                 return { status: 401, data: null };
             }
@@ -77,7 +105,7 @@ async function apiRequest(endpoint, method = 'GET', data = null, isMultipart = f
 
 /* ===== TOKEN REFRESH ===== */
 async function triggerTokenRefresh() {
-    const refreshToken = sessionStorage.getItem('refreshToken');
+    const refreshToken = sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
     if (!refreshToken) return false;
     try {
         const res = await fetch(API_BASE + '/auth/refresh-token', {
@@ -97,6 +125,14 @@ async function triggerTokenRefresh() {
         console.error('Token refresh failed', e);
     }
     return false;
+}
+
+/* ===== MOBILE DRAWER TOGGLE ===== */
+function toggleMobileDrawer() {
+    const drawer = document.getElementById('sidebarDrawer');
+    const backdrop = document.getElementById('drawerBackdrop');
+    if (drawer) drawer.classList.toggle('mobile-open');
+    if (backdrop) backdrop.classList.toggle('active');
 }
 
 /* ===== HELPERS ===== */

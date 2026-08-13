@@ -1,37 +1,44 @@
 /* ===== ROLE GUARD ===== */
 (function enforceRoleAccess() {
-    const token = sessionStorage.getItem('accessToken');
-    const rolesJSON = sessionStorage.getItem('userRoles');
+    const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+    const rolesJSON = sessionStorage.getItem('userRoles') || localStorage.getItem('userRoles');
 
     if (!token || !rolesJSON) {
         if (!window.location.pathname.includes('index.html')) {
-            window.location.href = 'index.html';
+            window.location.replace('index.html');
         }
         return;
     }
 
-    const roles = JSON.parse(rolesJSON);
-    const path = window.location.pathname;
+    try {
+        const roles = JSON.parse(rolesJSON);
+        const path = window.location.pathname;
 
-    if (path.includes('dashboard-admin.html')) {
-        if (!roles.includes('ROLE_MANAGER') && !roles.includes('ROLE_SUPER_ADMIN')) {
-            window.location.href = 'dashboard-citizen.html';
+        if (path.includes('dashboard-admin.html')) {
+            if (!roles.includes('ROLE_MANAGER') && !roles.includes('ROLE_SUPER_ADMIN')) {
+                window.location.replace('dashboard-citizen.html');
+            }
+        } else if (path.includes('dashboard-officer.html')) {
+            if (!roles.includes('ROLE_OFFICER') && !roles.includes('ROLE_MANAGER') && !roles.includes('ROLE_SUPER_ADMIN')) {
+                window.location.replace('dashboard-citizen.html');
+            }
         }
-    } else if (path.includes('dashboard-officer.html')) {
-        if (!roles.includes('ROLE_OFFICER') && !roles.includes('ROLE_MANAGER') && !roles.includes('ROLE_SUPER_ADMIN')) {
-            window.location.href = 'dashboard-citizen.html';
-        }
+    } catch (e) {
+        sessionStorage.clear();
+        localStorage.clear();
+        window.location.replace('index.html');
     }
 })();
 
 /* ===== LOGOUT ===== */
 async function handleLogout() {
-    const refresh = sessionStorage.getItem('refreshToken');
+    const refresh = sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
     if (refresh) {
-        await apiRequest('/auth/logout', 'POST', { refreshToken: refresh });
+        await apiRequest('/auth/logout', 'POST', { refreshToken: refresh }).catch(() => null);
     }
     sessionStorage.clear();
-    window.location.href = 'index.html';
+    localStorage.clear();
+    window.location.replace('index.html');
 }
 
 /* ===== LOAD PROFILE (called by every dashboard on DOMContentLoaded) ===== */
@@ -129,6 +136,12 @@ function switchViewTab(tabId) {
 
     const panel = document.getElementById(`panel-${tabId}`);
     if (panel) panel.classList.add('active');
+
+    // Auto-close mobile drawer after navigating on mobile
+    const drawer = document.getElementById('sidebarDrawer');
+    if (drawer && drawer.classList.contains('mobile-open')) {
+        toggleMobileDrawer();
+    }
 }
 
 /* ===== COMPLAINT DETAILS MODAL ===== */
@@ -201,7 +214,7 @@ async function openComplaintModal(complaintId) {
             if (c.imageUrls && c.imageUrls.length > 0) {
                 let html = '';
                 c.imageUrls.forEach((url, i) => {
-                    html += `<a href="${url}" target="_blank" title="Evidence Image ${i+1}">
+                    html += `<a href="${url}" target="_blank" title="Evidence Image ${i + 1}">
                         <img src="${url}" style="width:72px; height:72px; object-fit:cover; border-radius: var(--radius-md); border: 2px solid var(--border-color);" />
                     </a>`;
                 });
@@ -216,7 +229,7 @@ async function openComplaintModal(complaintId) {
             if (c.proofImageUrls && c.proofImageUrls.length > 0) {
                 let html = '';
                 c.proofImageUrls.forEach((url, i) => {
-                    html += `<a href="${url}" target="_blank" title="Proof Image ${i+1}">
+                    html += `<a href="${url}" target="_blank" title="Proof Image ${i + 1}">
                         <img src="${url}" style="width:72px; height:72px; object-fit:cover; border-radius: var(--radius-md); border: 2px solid var(--emerald);" />
                     </a>`;
                 });
@@ -263,11 +276,16 @@ function setupGlobalSearchUI() {
     const input = document.getElementById('globalComplaintSearch');
     const suggestions = document.getElementById('globalSearchSuggestions');
     const clearBtn = document.getElementById('globalSearchClearBtn');
+    const localLoader = document.getElementById('searchLocalLoader');
     if (!input || !suggestions) return;
 
     input.addEventListener('input', () => {
+        // Immediately clear any pending searches or suggestions on every keystroke
+        clearTimeout(searchDebounceTimer);
+        clearTimeout(suggestionDebounceTimer);
+
         const query = input.value.trim();
-        
+
         // Show/hide ✕ button
         if (clearBtn) {
             if (query) clearBtn.classList.add('active');
@@ -275,63 +293,90 @@ function setupGlobalSearchUI() {
         }
 
         if (!query) {
+            if (localLoader) localLoader.classList.add('hidden');
             suggestions.style.display = 'none';
             suggestions.innerHTML = '';
             triggerGlobalClear();
             return;
         }
 
+        // Show inline local loader while debouncing
+        if (localLoader) localLoader.classList.remove('hidden');
+
         // Debounce Autosuggestion API Call (300ms)
-        clearTimeout(suggestionDebounceTimer);
         suggestionDebounceTimer = setTimeout(async () => {
-            const res = await apiRequest(`/complains/suggest?query=${encodeURIComponent(query)}`, 'GET');
-            if (res.status === 200 && res.data) {
-                const arr = getApiData(res) || [];
-                if (arr.length === 0) {
-                    suggestions.style.display = 'none';
-                    return;
-                }
-                suggestions.innerHTML = '';
-                suggestions.style.display = 'flex';
-                arr.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'search-dropdown-item';
-                    
-                    // Highlight matching substring for production style suggestions
-                    const regex = new RegExp(`(${query})`, 'gi');
-                    div.innerHTML = item.replace(regex, '<strong>$1</strong>');
-                    
-                    div.addEventListener('click', () => {
-                        input.value = item;
+            try {
+                const res = await apiRequest(`/complains/suggest?query=${encodeURIComponent(query)}`, 'GET');
+                if (localLoader) localLoader.classList.add('hidden');
+
+                if (res.status === 200 && res.data) {
+                    const arr = getApiData(res) || [];
+                    if (arr.length === 0) {
+                        suggestions.style.display = 'none';
+                        return;
+                    }
+                    suggestions.innerHTML = '';
+                    suggestions.style.display = 'flex';
+
+                    // Display top 3 matching suggestions for subtle, high-performance UI
+                    const displayItems = arr.slice(0, 3);
+
+                    displayItems.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'search-dropdown-item';
+
+                        // Highlight matching substring for production style suggestions
+                        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                        const highlightedText = item.replace(regex, '<strong>$1</strong>');
+                        div.innerHTML = `<span class="suggestion-icon">🔍</span><span>${highlightedText}</span>`;
+
+                        div.addEventListener('click', () => {
+                            input.value = item;
+                            suggestions.style.display = 'none';
+                            if (clearBtn) clearBtn.classList.add('active');
+                            // Immediately execute search on selection
+                            triggerGlobalSearch();
+                        });
+                        suggestions.appendChild(div);
+                    });
+
+                    // Add "View all search results" bottom action item
+                    const viewAllDiv = document.createElement('div');
+                    viewAllDiv.className = 'search-dropdown-item search-view-all';
+                    viewAllDiv.innerHTML = `<span class="suggestion-icon">⚡</span><span>View all search results for "<strong>${query}</strong>"</span>`;
+                    viewAllDiv.addEventListener('click', () => {
                         suggestions.style.display = 'none';
                         if (clearBtn) clearBtn.classList.add('active');
                         triggerGlobalSearch();
                     });
-                    suggestions.appendChild(div);
-                });
+                    suggestions.appendChild(viewAllDiv);
+                } else {
+                    suggestions.style.display = 'none';
+                }
+            } catch (err) {
+                if (localLoader) localLoader.classList.add('hidden');
+                suggestions.style.display = 'none';
             }
         }, 300);
-
-        // Optional: Debounce actual Search results API Call (600ms) for real-time live typing filter!
-        clearTimeout(searchDebounceTimer);
-        searchDebounceTimer = setTimeout(() => {
-            triggerGlobalSearch();
-        }, 600);
     });
 
     // Close suggestions list on click outside
     document.addEventListener('click', (e) => {
-        if (e.target !== input && e.target !== suggestions) {
+        if (!e.target.closest('.search-bar-container')) {
             suggestions.style.display = 'none';
         }
     });
 
-    // Support hitting Enter to search instantly
+    // Support hitting Enter to search instantly or Escape to dismiss
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             clearTimeout(searchDebounceTimer);
+            clearTimeout(suggestionDebounceTimer);
+            if (localLoader) localLoader.classList.add('hidden');
             suggestions.style.display = 'none';
             triggerGlobalSearch();
+        } else if (e.key === 'Escape') {
+            suggestions.style.display = 'none';
         }
     });
 }
@@ -339,6 +384,11 @@ function setupGlobalSearchUI() {
 async function triggerGlobalSearch() {
     const input = document.getElementById('globalComplaintSearch');
     if (!input) return;
+
+    // Immediately hide search suggestions
+    const suggestions = document.getElementById('globalSearchSuggestions');
+    if (suggestions) suggestions.style.display = 'none';
+
     const query = input.value.trim();
     if (!query) return;
 
@@ -368,9 +418,13 @@ async function triggerGlobalSearch() {
 }
 
 function triggerGlobalClear() {
+    // Stop any scheduled search/suggest runs immediately to prevent race condition loading
+    clearTimeout(searchDebounceTimer);
+    clearTimeout(suggestionDebounceTimer);
+
     const input = document.getElementById('globalComplaintSearch');
     if (input) input.value = '';
-    
+
     const clearBtn = document.getElementById('globalSearchClearBtn');
     if (clearBtn) clearBtn.classList.remove('active');
 
@@ -379,7 +433,7 @@ function triggerGlobalClear() {
         suggestions.style.display = 'none';
         suggestions.innerHTML = '';
     }
-    
+
     const path = window.location.pathname;
     if (path.includes('dashboard-citizen.html')) {
         if (typeof loadMyComplaints === 'function') loadMyComplaints();
