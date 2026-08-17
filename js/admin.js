@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadUsers();
     loadAllComplaints();
     loadProfilesForDropdown();
+    loadActuatorTelemetry();
+    setInterval(loadActuatorTelemetry, 15000); // Periodic telemetry refresh every 15 seconds
 
     /* ----- STAFF PROVISION FORM ----- */
     const adminUserForm = document.getElementById('adminUserForm');
@@ -222,6 +224,20 @@ async function loadAllComplaints() {
     }
 
     const arr = getApiData(res) || [];
+
+    // Dynamically update Super Admin overview counters
+    const totalCount = arr.length;
+    const pendingCount = arr.filter(c => (c.complainStatus || 'PENDING').toUpperCase() === 'PENDING').length;
+    const resolvedCount = arr.filter(c => (c.complainStatus || '').toUpperCase() === 'RESOLVED').length;
+
+    const totalEl = document.getElementById('statTotalComplaints');
+    const pendingEl = document.getElementById('statPendingComplaints');
+    const resolvedEl = document.getElementById('statResolvedComplaints');
+
+    if (totalEl) totalEl.innerText = totalCount;
+    if (pendingEl) pendingEl.innerText = pendingCount;
+    if (resolvedEl) resolvedEl.innerText = resolvedCount;
+
     if (arr.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No complaints in the system yet.</p></div>';
         return;
@@ -509,5 +525,192 @@ function quickSelectUserForStatus(profileId) {
         select.value = profileId;
         document.getElementById('adminUserForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         showToast('info', 'User Selected', 'Target user loaded into Account Status form.');
+    }
+}
+
+/* ===== SPRING BOOT ACTUATOR TELEMETRY (SUPER ADMIN ONLY) ===== */
+async function loadActuatorTelemetry() {
+    const userRoles = JSON.parse(sessionStorage.getItem('userRoles') || '[]');
+    if (!userRoles.includes('ROLE_SUPER_ADMIN')) {
+        return; // Expose strictly on the superadmin side
+    }
+
+    const hub = document.getElementById('superadminTelemetryHub');
+    if (hub) hub.style.display = 'block';
+
+    const backendOrigin = API_BASE.replace('/api/v1', '');
+    const token = sessionStorage.getItem('accessToken');
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const fetchActuator = async (path) => {
+        try {
+            const r = await fetch(`${backendOrigin}/actuator${path}`, { headers });
+            if (r.ok) return await r.json();
+        } catch (e) {
+            console.warn(`Failed to fetch actuator info from ${path}:`, e);
+        }
+        return null;
+    };
+
+    // 1. Service Health Components
+    const health = await fetchActuator('/health');
+    if (health) {
+        const components = health.components || {};
+
+        // DB Status
+        const dbStatus = components.db?.status || health.status || 'UP';
+        updateComponentBadge('actuatorDbStatus', dbStatus);
+
+        // Redis Status
+        const redisStatus = components.redis?.status || 'UNKNOWN';
+        updateComponentBadge('actuatorRedisStatus', redisStatus);
+
+        // Elasticsearch Status
+        const elasticStatus = components.elasticsearch?.status || 'UNKNOWN';
+        updateComponentBadge('actuatorElasticStatus', elasticStatus);
+
+        // Mail Status
+        const mailStatus = components.mail?.status || 'UNKNOWN';
+        updateComponentBadge('actuatorMailStatus', mailStatus);
+
+        // Disk details (GB Free vs Total)
+        const disk = components.diskSpace?.details || {};
+        if (disk.total && disk.free) {
+            const totalGB = (disk.total / (1024 * 1024 * 1024)).toFixed(1);
+            const freeGB = (disk.free / (1024 * 1024 * 1024)).toFixed(1);
+            const usedGB = (totalGB - freeGB).toFixed(1);
+            const pct = ((usedGB / totalGB) * 100).toFixed(0);
+
+            const txt = document.getElementById('actuatorDiskText');
+            if (txt) txt.innerText = `${freeGB} GB Free / ${totalGB} GB`;
+            const bar = document.getElementById('actuatorDiskBar');
+            if (bar) bar.style.width = `${100 - pct}%`;
+        } else {
+            const txt = document.getElementById('actuatorDiskText');
+            if (txt) txt.innerText = 'OK';
+            const bar = document.getElementById('actuatorDiskBar');
+            if (bar) bar.style.width = '100%';
+        }
+    } else {
+        // Fallback when actuator endpoint is unreachable/down
+        updateComponentBadge('actuatorDbStatus', 'DOWN');
+        updateComponentBadge('actuatorRedisStatus', 'DOWN');
+        updateComponentBadge('actuatorElasticStatus', 'DOWN');
+        updateComponentBadge('actuatorMailStatus', 'DOWN');
+    }
+
+    // Helper to update UI health tags
+    function updateComponentBadge(id, status) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerText = status;
+        const normalized = status.toLowerCase();
+        if (normalized === 'up') {
+            el.className = 'badge active';
+        } else if (normalized === 'unknown' || normalized === '—') {
+            el.className = 'badge low';
+        } else {
+            el.className = 'badge rejected';
+        }
+    }
+
+    // 2. Resource Metrics (JVM Memory)
+    const memUsedRes = await fetchActuator('/metrics/jvm.memory.used');
+    const memMaxRes = await fetchActuator('/metrics/jvm.memory.max');
+    if (memUsedRes && memMaxRes) {
+        const usedVal = memUsedRes.measurements?.[0]?.value || 0;
+        const maxVal = memMaxRes.measurements?.[0]?.value || 0;
+        if (maxVal > 0) {
+            const usedMB = (usedVal / (1024 * 1024)).toFixed(0);
+            const maxMB = (maxVal / (1024 * 1024)).toFixed(0);
+            const pct = Math.round((usedVal / maxVal) * 100);
+
+            const textEl = document.getElementById('actuatorMemoryText');
+            if (textEl) textEl.innerText = `${usedMB} MB / ${maxMB} MB`;
+            const barEl = document.getElementById('actuatorMemoryBar');
+            if (barEl) barEl.style.width = `${pct}%`;
+
+            // Memory Health Badge calculation
+            const healthEl = document.getElementById('actuatorMemoryHealth');
+            if (healthEl) {
+                if (pct < 70) {
+                    healthEl.innerText = 'HEALTHY';
+                    healthEl.className = 'badge active';
+                } else if (pct < 85) {
+                    healthEl.innerText = 'OPTIMAL';
+                    healthEl.className = 'badge in_progress';
+                } else {
+                    healthEl.innerText = 'PRESSURE';
+                    healthEl.className = 'badge rejected';
+                }
+            }
+        }
+    }
+
+    // 3. System CPU Load
+    const cpuRes = await fetchActuator('/metrics/system.cpu.usage') || await fetchActuator('/metrics/process.cpu.usage');
+    if (cpuRes) {
+        const val = cpuRes.measurements?.[0]?.value || 0;
+        const pct = (val * 100).toFixed(1);
+        const textEl = document.getElementById('actuatorCpuText');
+        if (textEl) textEl.innerText = `${pct}%`;
+        const barEl = document.getElementById('actuatorCpuBar');
+        if (barEl) barEl.style.width = `${pct}%`;
+    }
+
+    // 4. Platform Engine Info
+    const info = await fetchActuator('/info');
+    if (info) {
+        const springV = info.springBootVersion || info.spring?.boot?.version || '3.2.x';
+        const javaV = info.javaVersion || info.java?.version || '17';
+        const activeProfile = info.activeProfiles || info.spring?.profiles?.active || 'production';
+
+        const svEl = document.getElementById('actuatorSpringVersion');
+        if (svEl) svEl.innerText = springV;
+        const jvEl = document.getElementById('actuatorJavaVersion');
+        if (jvEl) jvEl.innerText = javaV;
+        const apEl = document.getElementById('actuatorActiveProfile');
+        if (apEl) apEl.innerText = Array.isArray(activeProfile) ? activeProfile.join(', ') : activeProfile;
+    }
+
+    // 5. System Uptime
+    const uptimeRes = await fetchActuator('/metrics/process.uptime');
+    if (uptimeRes) {
+        const sec = uptimeRes.measurements?.[0]?.value || 0;
+        const d = Math.floor(sec / (3600*24));
+        const h = Math.floor((sec % (3600*24)) / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        let uptimeStr = '';
+        if (d > 0) uptimeStr += `${d}d `;
+        if (h > 0 || d > 0) uptimeStr += `${h}h `;
+        uptimeStr += `${m}m`;
+
+        const el = document.getElementById('actuatorUptime');
+        if (el) el.innerText = uptimeStr;
+    }
+
+    // 6. JVM Performance Metrics
+    const threadsLiveRes = await fetchActuator('/metrics/jvm.threads.live');
+    if (threadsLiveRes) {
+        const val = threadsLiveRes.measurements?.[0]?.value || 0;
+        const el = document.getElementById('actuatorThreadsLive');
+        if (el) el.innerText = val;
+    }
+
+    const threadsPeakRes = await fetchActuator('/metrics/jvm.threads.peak');
+    if (threadsPeakRes) {
+        const val = threadsPeakRes.measurements?.[0]?.value || 0;
+        const el = document.getElementById('actuatorThreadsPeak');
+        if (el) el.innerText = val;
+    }
+
+    const classesLoadedRes = await fetchActuator('/metrics/jvm.classes.loaded');
+    if (classesLoadedRes) {
+        const val = classesLoadedRes.measurements?.[0]?.value || 0;
+        const el = document.getElementById('actuatorClassesLoaded');
+        if (el) el.innerText = Number(val).toLocaleString();
     }
 }

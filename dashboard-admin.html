@@ -82,8 +82,8 @@
 
         <!-- ===== OVERVIEW ===== -->
         <section id="panel-dashboard" class="view-panel active">
-            <div class="welcome-banner glass-card" style="background: linear-gradient(135deg, rgba(244,63,94,0.12) 0%, rgba(139,92,246,0.08) 50%, rgba(8,15,31,0.7) 100%); border-color: rgba(244,63,94,0.2);">
-                <h1>Control Center, <span id="welcomeUserTitle" style="background: var(--danger-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Admin</span> ⚡</h1>
+            <div class="welcome-banner glass-card" style="background: linear-gradient(135deg, rgba(254, 102, 1, 0.12) 0%, rgba(139,92,246,0.08) 50%, rgba(8,15,31,0.7) 100%); border-color: rgba(254, 102, 1, 0.2);">
+                <h1>Control Center, <span id="welcomeUserTitle" style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Admin</span> ⚡</h1>
                 <p>Manage system categories, staff accounts, and oversee all citizen complaints.</p>
             </div>
             <div class="stats-grid">
@@ -110,6 +110,154 @@
                         <div class="stat-icon warning">🪪</div>
                     </div>
                     <div class="stat-value" id="statUsername" style="font-size: 1rem;">—</div>
+                </div>
+                <!-- Additional Admin-Specific Database Stats Cards -->
+                <div class="glass-card stat-card">
+                    <div class="stat-card-top">
+                        <span class="stat-label">Total Tickets</span>
+                        <div class="stat-icon primary">📋</div>
+                    </div>
+                    <div class="stat-value" id="statTotalComplaints" style="font-size: 1.5rem; font-weight: 800;">—</div>
+                </div>
+                <div class="glass-card stat-card">
+                    <div class="stat-card-top">
+                        <span class="stat-label">Pending Tickets</span>
+                        <div class="stat-icon warning">⏳</div>
+                    </div>
+                    <div class="stat-value" id="statPendingComplaints" style="font-size: 1.5rem; font-weight: 800;">—</div>
+                </div>
+                <div class="glass-card stat-card">
+                    <div class="stat-card-top">
+                        <span class="stat-label">Resolved Tickets</span>
+                        <div class="stat-icon success">✅</div>
+                    </div>
+                    <div class="stat-value" id="statResolvedComplaints" style="font-size: 1.5rem; font-weight: 800;">—</div>
+                </div>
+            </div>
+
+            <!-- Super Admin Telemetry Hub (Exposed for ROLE_SUPER_ADMIN) -->
+            <div id="superadminTelemetryHub" class="glass-card section-card" style="display: none; margin-top: 24px; padding: 24px;">
+                <div class="section-card-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 20px;">
+                    <h2 style="display: flex; align-items: center; gap: 8px; font-size: 1.2rem; color: var(--text-primary);">
+                        <span>⚙️</span> Backend Telemetry &amp; Actuator Stats
+                    </h2>
+                    <span class="badge active" style="font-size: 0.72rem; padding: 4px 10px;">Super Admin Scope</span>
+                </div>
+                
+                <div class="telemetry-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                    <!-- Health Components -->
+                    <div class="glass-card" style="padding: 16px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.01);">
+                        <h3 style="font-size: 0.95rem; margin-bottom: 14px; color: var(--text-primary); display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(0,0,0,0.03); padding-bottom: 6px;">
+                            <span>🛡️</span> Service Health Components
+                        </h3>
+                        <ul id="telemetryComponentsList" style="list-style: none; display: flex; flex-direction: column; gap: 12px; padding: 0;">
+                            <li style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.85rem; color: var(--text-secondary);">Database (PostgreSQL)</span>
+                                <span id="actuatorDbStatus" class="badge low">—</span>
+                            </li>
+                            <li style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.85rem; color: var(--text-secondary);">Redis Cache</span>
+                                <span id="actuatorRedisStatus" class="badge low">—</span>
+                            </li>
+                            <li style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.85rem; color: var(--text-secondary);">Elasticsearch Indexer</span>
+                                <span id="actuatorElasticStatus" class="badge low">—</span>
+                            </li>
+                            <li style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.85rem; color: var(--text-secondary);">Mail Server (SMTP)</span>
+                                <span id="actuatorMailStatus" class="badge low">—</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- JVM & Resource Utilization -->
+                    <div class="glass-card" style="padding: 16px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.01);">
+                        <h3 style="font-size: 0.95rem; margin-bottom: 14px; color: var(--text-primary); display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(0,0,0,0.03); padding-bottom: 6px;">
+                            <span>📈</span> Resource Metrics
+                        </h3>
+                        <div style="display: flex; flex-direction: column; gap: 14px;">
+                            <!-- JVM Memory -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                                    <span style="color: var(--text-secondary);">JVM Memory Usage</span>
+                                    <span id="actuatorMemoryText" style="font-weight: 600; color: var(--text-primary);">0 MB / 0 MB</span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.05); border-radius: 4px; overflow: hidden; border: 1px solid var(--border-color);">
+                                    <div id="actuatorMemoryBar" style="width: 0%; height: 100%; background: var(--primary-gradient); border-radius: 4px; transition: width 0.5s ease;"></div>
+                                </div>
+                            </div>
+                            <!-- Disk Usage -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                                    <span style="color: var(--text-secondary);">Disk Space Status</span>
+                                    <span id="actuatorDiskText" style="font-weight: 600; color: var(--text-primary);">0 GB Free</span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.05); border-radius: 4px; overflow: hidden; border: 1px solid var(--border-color);">
+                                    <div id="actuatorDiskBar" style="width: 0%; height: 100%; background: linear-gradient(135deg, #1fad37 0%, #22c55e 100%); border-radius: 4px; transition: width 0.5s ease;"></div>
+                                </div>
+                            </div>
+                            <!-- CPU Usage -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                                    <span style="color: var(--text-secondary);">Process CPU Load</span>
+                                    <span id="actuatorCpuText" style="font-weight: 600; color: var(--text-primary);">0.0%</span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.05); border-radius: 4px; overflow: hidden; border: 1px solid var(--border-color);">
+                                    <div id="actuatorCpuBar" style="width: 0%; height: 100%; background: linear-gradient(135deg, #fe6601 0%, #ffbf00 100%); border-radius: 4px; transition: width 0.5s ease;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Platform & Uptime Info -->
+                    <div class="glass-card" style="padding: 16px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.01);">
+                        <h3 style="font-size: 0.95rem; margin-bottom: 14px; color: var(--text-primary); display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(0,0,0,0.03); padding-bottom: 6px;">
+                            <span>🔧</span> Engine Properties
+                        </h3>
+                        <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; padding: 0;">
+                            <li style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Spring Boot Version</span>
+                                <strong id="actuatorSpringVersion" style="color: var(--text-primary);">—</strong>
+                            </li>
+                            <li style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Java JDK Version</span>
+                                <strong id="actuatorJavaVersion" style="color: var(--text-primary);">—</strong>
+                            </li>
+                            <li style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Active Profile</span>
+                                <strong id="actuatorActiveProfile" style="color: var(--text-primary);">—</strong>
+                            </li>
+                            <li style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">System Uptime</span>
+                                <strong id="actuatorUptime" style="color: var(--text-primary);">—</strong>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- JVM & Thread Performance Analytics -->
+                    <div class="glass-card" style="padding: 16px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.01);">
+                        <h3 style="font-size: 0.95rem; margin-bottom: 14px; color: var(--text-primary); display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(0,0,0,0.03); padding-bottom: 6px;">
+                            <span>📊</span> JVM Performance Analytics
+                        </h3>
+                        <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; padding: 0;">
+                            <li style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Active Threads</span>
+                                <strong id="actuatorThreadsLive" style="color: var(--text-primary);">—</strong>
+                            </li>
+                            <li style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Peak Threads</span>
+                                <strong id="actuatorThreadsPeak" style="color: var(--text-primary);">—</strong>
+                            </li>
+                            <li style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Classes Loaded</span>
+                                <strong id="actuatorClassesLoaded" style="color: var(--text-primary);">—</strong>
+                            </li>
+                            <li style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Memory Health</span>
+                                <span id="actuatorMemoryHealth" class="badge low">—</span>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </section>
