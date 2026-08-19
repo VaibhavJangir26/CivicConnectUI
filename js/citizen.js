@@ -123,19 +123,28 @@ async function loadCategoriesForDropdown() {
 }
 
 /* ===== LOAD MY COMPLAINTS TABLE ===== */
-async function loadMyComplaints() {
+async function loadMyComplaints(page = 0) {
     const container = document.getElementById('myComplaintsTableContainer');
     if (!container) return;
 
     container.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
 
-    const res = await apiRequest('/complains', 'GET');
+    const res = await apiRequest(`/complains?page=${page}&size=10`, 'GET');
     if (res.status !== 200 || !res.data) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>${extractErrorMessage(res)}</p></div>`;
         return;
     }
 
-    const arr = getApiData(res) || [];
+    const pageData = getApiData(res);
+    if (!pageData) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Failed to load complaints data format.</p></div>`;
+        return;
+    }
+
+    const arr = Array.isArray(pageData) ? pageData : (pageData.content || []);
+    const totalPages = pageData.totalPages || 1;
+    const currentPage = pageData.pageNumber || 0;
+
     if (arr.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
@@ -202,7 +211,8 @@ async function loadMyComplaints() {
                 </thead>
                 <tbody>${rows}</tbody>
             </table>
-        </div>`;
+        </div>
+        ${buildPaginationHtml(currentPage, totalPages, 'switchCitizenPage')}`;
 
     // Also populate recent activity on dashboard
     const recentContainer = document.getElementById('recentActivityContainer');
@@ -213,10 +223,14 @@ async function loadMyComplaints() {
         recent.forEach(c => {
             const s = c.complainStatus || 'PENDING';
             const p = c.complainPriority || 'LOW';
-            const cat = c.category ? c.category.categoryName : 'N/A';
-            recentHtml += `<tr><td>${cat}</td><td><span class="badge ${s.toLowerCase()}">${s}</span></td><td><span class="badge ${p.toLowerCase()}">${p}</span></td></tr>`;
+            recentHtml += `<tr><td>${c.category ? c.category.categoryName : '—'}</td><td><span class="badge ${s.toLowerCase()}">${s}</span></td><td><span class="badge ${p.toLowerCase()}">${p}</span></td></tr>`;
         });
         recentHtml += '</tbody></table></div>';
         recentContainer.innerHTML = recentHtml;
     }
 }
+
+// Global callback for switching citizen complaint pages
+window.switchCitizenPage = function(pageNumber) {
+    loadMyComplaints(pageNumber);
+};

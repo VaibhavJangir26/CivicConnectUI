@@ -13,21 +13,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ===== LOAD ASSIGNED TASKS ===== */
-async function loadAssignedTasks() {
+async function loadAssignedTasks(page = 0) {
     const container = document.getElementById('assignedTasksContainer');
     const select = document.getElementById('taskComplaintId');
     if (!container) return;
 
     container.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
 
-    const res = await apiRequest('/complains', 'GET');
+    const res = await apiRequest(`/complains?page=${page}&size=10`, 'GET');
     if (res.status !== 200 || !res.data) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>${extractErrorMessage(res)}</p></div>`;
         if (select) select.innerHTML = '<option value="" disabled selected>Failed to load tickets</option>';
         return;
     }
 
-    const arr = getApiData(res) || [];
+    const pageData = getApiData(res);
+    if (!pageData) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Failed to load assigned tasks data format.</p></div>`;
+        return;
+    }
+
+    const arr = Array.isArray(pageData) ? pageData : (pageData.content || []);
+    const totalPages = pageData.totalPages || 1;
+    const currentPage = pageData.pageNumber || 0;
 
     // Populate select dropdown for task update form
     if (select) {
@@ -120,8 +128,13 @@ async function loadAssignedTasks() {
                 </thead>
                 <tbody>${rows}</tbody>
             </table>
-        </div>`;
+        </div>
+        ${buildPaginationHtml(currentPage, totalPages, 'switchOfficerPage')}`;
 }
+
+window.switchOfficerPage = function(pageNumber) {
+    loadAssignedTasks(pageNumber);
+};
 
 /* ===== FILL TASK FORM ===== */
 function fillTaskForm(complaintId) {

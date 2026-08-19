@@ -146,3 +146,44 @@ function extractErrorMessage(res) {
     if (typeof res.data === 'string') return res.data;
     return res.data.message || res.data.error || JSON.stringify(res.data);
 }
+
+/* ===== PAGINATION HTML BUILDER ===== */
+function buildPaginationHtml(currentPage, totalPages, callbackName) {
+    if (totalPages <= 1) return '';
+
+    let html = '<div class="pagination-container">';
+    
+    // Previous Button
+    html += `
+        <button class="pagination-btn" ${currentPage === 0 ? 'disabled' : ''} onclick="${callbackName}(${currentPage - 1})">
+            ◀ Prev
+        </button>
+    `;
+
+    // Page Numbers (sliding window of max 5 pages)
+    const maxVisible = 5;
+    let startPage = Math.max(0, currentPage - 2);
+    let endPage = Math.min(totalPages - 1, startPage + maxVisible - 1);
+    
+    if (endPage - startPage + 1 < maxVisible) {
+        startPage = Math.max(0, endPage - maxVisible + 1);
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+        html += `
+            <button class="pagination-btn ${p === currentPage ? 'active' : ''}" onclick="${callbackName}(${p})">
+                ${p + 1}
+            </button>
+        `;
+    }
+
+    // Next Button
+    html += `
+        <button class="pagination-btn" ${currentPage === totalPages - 1 ? 'disabled' : ''} onclick="${callbackName}(${currentPage + 1})">
+            Next ▶
+        </button>
+    `;
+
+    html += '</div>';
+    return html;
+}

@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadSystemCategories();
     loadUsers();
     loadAllComplaints();
+    loadAdminOverviewStats(); // Load database metrics count indicators
     loadProfilesForDropdown();
     loadActuatorTelemetry();
     setInterval(loadActuatorTelemetry, 15000); // Periodic telemetry refresh every 15 seconds
@@ -152,6 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showToast('success', 'Complaint Updated', 'The complaint has been updated successfully.');
                 manageComplaintForm.reset();
                 loadAllComplaints();
+                loadAdminOverviewStats(); // Refresh database overview metrics
             } else {
                 showToast('error', 'Update Failed', extractErrorMessage(res));
             }
@@ -212,31 +214,26 @@ async function deleteCategory(id, name) {
 }
 
 /* ===== LOAD ALL COMPLAINTS ===== */
-async function loadAllComplaints() {
+async function loadAllComplaints(page = 0) {
     const container = document.getElementById('allComplaintsContainer');
     if (!container) return;
     container.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
 
-    const res = await apiRequest('/complains', 'GET');
+    const res = await apiRequest(`/complains?page=${page}&size=10`, 'GET');
     if (res.status !== 200 || !res.data) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>${extractErrorMessage(res)}</p></div>`;
         return;
     }
 
-    const arr = getApiData(res) || [];
+    const pageData = getApiData(res);
+    if (!pageData) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Failed to load complaints data format.</p></div>`;
+        return;
+    }
 
-    // Dynamically update Super Admin overview counters
-    const totalCount = arr.length;
-    const pendingCount = arr.filter(c => (c.complainStatus || 'PENDING').toUpperCase() === 'PENDING').length;
-    const resolvedCount = arr.filter(c => (c.complainStatus || '').toUpperCase() === 'RESOLVED').length;
-
-    const totalEl = document.getElementById('statTotalComplaints');
-    const pendingEl = document.getElementById('statPendingComplaints');
-    const resolvedEl = document.getElementById('statResolvedComplaints');
-
-    if (totalEl) totalEl.innerText = totalCount;
-    if (pendingEl) pendingEl.innerText = pendingCount;
-    if (resolvedEl) resolvedEl.innerText = resolvedCount;
+    const arr = Array.isArray(pageData) ? pageData : (pageData.content || []);
+    const totalPages = pageData.totalPages || 1;
+    const currentPage = pageData.pageNumber || 0;
 
     if (arr.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No complaints in the system yet.</p></div>';
@@ -281,7 +278,8 @@ async function loadAllComplaints() {
                 </thead>
                 <tbody>${rows}</tbody>
             </table>
-        </div>`;
+        </div>
+        ${buildPaginationHtml(currentPage, totalPages, 'switchAdminPage')}`;
 }
 
 function fillManageForm(complainId) {
@@ -295,9 +293,10 @@ function fillManageForm(complainId) {
 async function deleteComplaint(id) {
     if (!confirm('Permanently delete this complaint? This will also delete associated images from Cloudinary.')) return;
     const res = await apiRequest(`/complains/${id}`, 'DELETE');
-    if (res.status === 200) {
+    if (res.status === 200 || res.status === 204) {
         showToast('success', 'Complaint Deleted', 'The complaint and its images have been removed.');
         loadAllComplaints();
+        loadAdminOverviewStats(); // Refresh database overview metrics
     } else {
         showToast('error', 'Delete Failed', extractErrorMessage(res));
     }
@@ -714,3 +713,34 @@ async function loadActuatorTelemetry() {
         if (el) el.innerText = Number(val).toLocaleString();
     }
 }
+
+/* ===== LOAD SYSTEM OVERVIEW STATISTICS (PAGINATION AWARE TOTALS) ===== */
+async function loadAdminOverviewStats() {
+    // Total Tickets
+    const resTotal = await apiRequest('/complains?size=1', 'GET');
+    const pageDataTotal = getApiData(resTotal);
+    const totalElements = pageDataTotal?.totalElements || 0;
+
+    // Pending Tickets
+    const resPending = await apiRequest('/complains?status=PENDING&size=1', 'GET');
+    const pageDataPending = getApiData(resPending);
+    const pendingElements = pageDataPending?.totalElements || 0;
+
+    // Resolved Tickets
+    const resResolved = await apiRequest('/complains?status=RESOLVED&size=1', 'GET');
+    const pageDataResolved = getApiData(resResolved);
+    const resolvedElements = pageDataResolved?.totalElements || 0;
+
+    const totalEl = document.getElementById('statTotalComplaints');
+    const pendingEl = document.getElementById('statPendingComplaints');
+    const resolvedEl = document.getElementById('statResolvedComplaints');
+
+    if (totalEl) totalEl.innerText = totalElements;
+    if (pendingEl) pendingEl.innerText = pendingElements;
+    if (resolvedEl) resolvedEl.innerText = resolvedElements;
+}
+
+// Global callback for switching admin complaints pages
+window.switchAdminPage = function(pageNumber) {
+    loadAllComplaints(pageNumber);
+};
